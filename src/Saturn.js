@@ -1,39 +1,39 @@
-import { Canvas } from "@react-three/fiber";
-import { Float, OrbitControls, Sphere, Stars, Html } from '@react-three/drei';
-import { useState } from 'react';
-
-// 토성 위키백과 https://ko.wikipedia.org/wiki/%ED%86%A0%EC%84%B1
+import { Canvas, useFrame } from "@react-three/fiber";
+import { Float, OrbitControls, Sphere, Stars, Html, useTexture } from '@react-three/drei';
+import { useState, useRef } from 'react';
+import * as THREE from 'three';
 
 export default function Saturn() {
     return (
-        <Canvas camera={{ position: [0, 0, 5] }} style={{ height: "100vh" }}>
-            <OrbitControls />
-            <ambientLight />
+        <Canvas camera={{ position: [0, 0, 10] }} style={{ height: "100vh" }}>
+            <OrbitControls enableZoom={false} />
+            <ambientLight intensity={0.5} />
             <pointLight position={[10, 10, 10]} />
-            
             <color attach="background" args={['black']} />
-            <Stars saturation={0} count={400} speed={0.5} />
-
+            <Stars saturation={0} count={5000} speed={1} />
             <Float speed={1.5}>
                 <Planet />
                 <Moons />
             </Float>
         </Canvas>
-    )
+    );
 }
 
 function Planet() {
+    const texturePath = '/textures/saturn.png';
+    console.log(`Loading texture from ${texturePath}`);
+    const texture = useTexture(texturePath);
     return (
-        <Sphere args={[1, 128, 128]}>
-            <meshBasicMaterial color="rgb(142, 117, 95)" />
+        <Sphere args={[2, 128, 128]}>
+            <meshStandardMaterial map={texture} />
         </Sphere>
-    )
+    );
 }
 
 function Moons() {
     const moonCount = 5;
-    const radius = 2.0;
-    const moonSize = 0.3; // Consistent size for all moons
+    const radius = 5.0;
+    const moonSize = 0.5;
     const titles = ["Home", "About Us", "Services/Products", "Blog/News", "Contact"];
     const links = ["/home", "/about", "/services", "/blog", "/contact"];
     const moons = [];
@@ -54,6 +54,29 @@ function Moons() {
 
 function Moon({ position, size, title, link }) {
     const [hovered, setHovered] = useState(false);
+    const moonRef = useRef();
+    const textRef = useRef();
+    const texturePath = '/textures/moon.png';
+    console.log(`Loading texture from ${texturePath}`);
+    const moonTexture = useTexture(texturePath);
+    const saturnRadius = 2;
+
+    useFrame(({ camera }) => {
+        if (moonRef.current && textRef.current) {
+            const moonPos = new THREE.Vector3().setFromMatrixPosition(moonRef.current.matrixWorld);
+            const saturnPos = new THREE.Vector3(0, 0, 0);
+            const camPos = camera.position;
+
+            const moonToCamDist = moonPos.distanceTo(camPos);
+            const saturnToCamDist = saturnPos.distanceTo(camPos);
+
+            if (moonToCamDist > saturnToCamDist + saturnRadius) {
+                textRef.current.style.display = 'none';
+            } else {
+                textRef.current.style.display = 'block';
+            }
+        }
+    });
 
     const handlePointerOver = () => setHovered(true);
     const handlePointerOut = () => setHovered(false);
@@ -62,12 +85,12 @@ function Moon({ position, size, title, link }) {
     };
 
     return (
-        <group position={position} onPointerOver={handlePointerOver} onPointerOut={handlePointerOut} onClick={handleClick}>
+        <group ref={moonRef} position={position} onPointerOver={handlePointerOver} onPointerOut={handlePointerOut} onClick={handleClick}>
             <Sphere args={[size, 32, 32]}>
-                <meshBasicMaterial color={hovered ? 'yellow' : 'gray'} />
+                <meshStandardMaterial map={moonTexture} color={hovered ? 'yellow' : 'gray'} />
             </Sphere>
-            <Html position={[0, size * 1.5, 0]} center>
-                <div style={{ color: 'white', fontSize: '20px', textAlign: 'center', width: '100px' }}>{title}</div>
+            <Html ref={textRef} position={[0, size * 1.5, 0]} center>
+                <div style={{ color: 'white', fontSize: '16px', textAlign: 'center', width: '100px' }}>{title}</div>
             </Html>
         </group>
     );
